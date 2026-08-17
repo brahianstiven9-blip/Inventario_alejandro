@@ -50,34 +50,67 @@
     }
     h1{font-size:24px;margin:0}
     .subtitle{color:var(--muted);font-size:14px;margin-top:4px}
+    .summary{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:8px;
+      margin-bottom:12px;
+    }
+    .summary-card{
+      background:var(--card);
+      border:1px solid #e5e7eb;
+      border-radius:11px;
+      padding:10px 8px;
+      text-align:center;
+      box-shadow:0 1px 4px rgba(0,0,0,.03);
+    }
+    .summary-number{
+      font-size:22px;
+      line-height:1;
+      font-weight:800;
+      color:var(--text);
+    }
+    .summary-label{
+      margin-top:5px;
+      font-size:11px;
+      color:var(--muted);
+      font-weight:650;
+    }
+    .summary-card.sold .summary-number{color:var(--success)}
     .card{
       background:var(--card);
       border:1px solid #e5e7eb;
       border-radius:14px;
-      padding:16px;
-      margin-bottom:18px;
+      padding:13px;
+      margin-bottom:14px;
       box-shadow:0 2px 8px rgba(0,0,0,.04);
     }
     .form-title,.list-title{
-      font-size:18px;
+      font-size:17px;
       font-weight:700;
-      margin:0 0 14px;
+      margin:0 0 10px;
     }
-    .field{margin-bottom:13px}
+    .form-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:9px 10px;
+      margin-bottom:11px;
+    }
+    .field{margin:0}
     label{
       display:block;
-      font-size:14px;
-      font-weight:600;
-      margin-bottom:6px;
+      font-size:12px;
+      font-weight:650;
+      margin-bottom:4px;
     }
     input, select{
       width:100%;
-      min-height:46px;
+      min-height:38px;
       border:1px solid var(--border);
-      border-radius:9px;
+      border-radius:8px;
       background:#fff;
-      padding:10px 12px;
-      font-size:16px;
+      padding:7px 9px;
+      font-size:15px;
       color:var(--text);
     }
     input:focus,select:focus{
@@ -87,8 +120,8 @@
     button{
       border:0;
       border-radius:9px;
-      min-height:44px;
-      font-size:15px;
+      min-height:40px;
+      font-size:14px;
       font-weight:650;
       cursor:pointer;
     }
@@ -198,6 +231,12 @@
     }
     #restoreInput{display:none}
     @media (max-width:420px){
+      .app{padding-left:12px;padding-right:12px}
+      .header{margin-bottom:12px}
+      .logo{width:56px;height:56px}
+      h1{font-size:21px}
+      .summary-number{font-size:20px}
+      .summary-label{font-size:10px}
       .vehicle{flex-direction:column}
       .actions{width:100%;flex-direction:row;justify-content:space-between;align-items:center}
     }
@@ -213,27 +252,44 @@
       </div>
     </header>
 
+    <section class="summary" aria-label="Resumen del inventario">
+      <div class="summary-card">
+        <div id="summaryTotal" class="summary-number">0</div>
+        <div class="summary-label">TOTAL</div>
+      </div>
+      <div class="summary-card">
+        <div id="summaryAvailable" class="summary-number">0</div>
+        <div class="summary-label">DISPONIBLES</div>
+      </div>
+      <div class="summary-card sold">
+        <div id="summarySold" class="summary-number">0</div>
+        <div class="summary-label">VENDIDOS</div>
+      </div>
+    </section>
+
     <section class="card">
       <h2 class="form-title">Agregar vehículo</h2>
       <form id="vehicleForm">
-        <div class="field">
-          <label for="marca">Marca</label>
-          <input id="marca" name="marca" autocomplete="off" placeholder="Ej. Toyota" required />
-        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="marca">Marca</label>
+            <input id="marca" name="marca" autocomplete="off" placeholder="Ej. Toyota" required />
+          </div>
 
-        <div class="field">
-          <label for="color">Color</label>
-          <input id="color" name="color" autocomplete="off" placeholder="Ej. Blanco" required />
-        </div>
+          <div class="field">
+            <label for="color">Color</label>
+            <input id="color" name="color" autocomplete="off" placeholder="Ej. Blanco" required />
+          </div>
 
-        <div class="field">
-          <label for="anio">Año</label>
-          <input id="anio" name="anio" inputmode="numeric" placeholder="Ej. 2022" required />
-        </div>
+          <div class="field">
+            <label for="anio">Año</label>
+            <input id="anio" name="anio" inputmode="numeric" placeholder="Ej. 2022" required />
+          </div>
 
-        <div class="field">
-          <label for="precio">Precio</label>
-          <input id="precio" name="precio" inputmode="numeric" placeholder="Ej. 85000000" required />
+          <div class="field">
+            <label for="precio">Precio</label>
+            <input id="precio" name="precio" inputmode="numeric" placeholder="Ej. 85000000" required />
+          </div>
         </div>
 
         <button class="primary" type="submit">Agregar vehículo</button>
@@ -358,6 +414,15 @@ function escapeHTML(value) {
 
 async function renderVehicles() {
   let vehicles = await getAllVehicles();
+
+  // Resumen superior
+  const total = vehicles.length;
+  const vendidos = vehicles.filter(v => v.vendido).length;
+  const disponibles = total - vendidos;
+
+  document.getElementById("summaryTotal").textContent = total;
+  document.getElementById("summaryAvailable").textContent = disponibles;
+  document.getElementById("summarySold").textContent = vendidos;
 
   vehicles.sort((a, b) => {
     if (a.vendido !== b.vendido) return a.vendido ? 1 : -1;

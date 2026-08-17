@@ -1,25 +1,16 @@
-const CACHE_NAME = "inventario-vehiculos-v2";
-const ASSETS = [
-  "./",
-  "./index.html",
-  "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png",
-  "./logo.png"
-];
+const CACHE_NAME = "inventario-vehiculos-v3";
+const ASSETS = ["./","./index.html","./manifest.json","./icon-192.png","./icon-512.png","./logo.png"];
 
 self.addEventListener("install", event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
   self.skipWaiting();
 });
 
 self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))
-    )
+    caches.keys().then(keys => Promise.all(
+      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+    ))
   );
   self.clients.claim();
 });
@@ -27,9 +18,7 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
 
-  const isNavigation = event.request.mode === "navigate";
-
-  if (isNavigation) {
+  if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
         .then(response => {
@@ -44,13 +33,11 @@ self.addEventListener("fetch", event => {
 
   event.respondWith(
     caches.match(event.request).then(cached => {
-      const networkFetch = fetch(event.request).then(response => {
+      return cached || fetch(event.request).then(response => {
         const copy = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
         return response;
-      }).catch(() => cached);
-
-      return cached || networkFetch;
+      });
     })
   );
 });

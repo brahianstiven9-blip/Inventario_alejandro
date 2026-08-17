@@ -140,6 +140,19 @@
       background:#e8eef7;
       color:#174a7e;
     }
+    .share{
+      width:100%;
+      margin-top:9px;
+      background:#eaf6ee;
+      color:#176b35;
+      border:1px solid #cce7d5;
+    }
+    .share-note{
+      font-size:11px;
+      color:var(--muted);
+      margin-top:7px;
+      line-height:1.35;
+    }
     .danger{
       color:var(--danger);
       background:#fff1f1;
@@ -290,6 +303,11 @@
             <label for="precio">Precio</label>
             <input id="precio" name="precio" inputmode="numeric" placeholder="Ej. 85000000" required />
           </div>
+
+          <div class="field">
+            <label for="kilometraje">Kilometraje (km)</label>
+            <input id="kilometraje" name="kilometraje" inputmode="numeric" placeholder="Ej. 65000" required />
+          </div>
         </div>
 
         <button class="primary" type="submit">Agregar vehículo</button>
@@ -299,6 +317,8 @@
         <button class="secondary" id="backupBtn" type="button">Exportar copia</button>
         <button class="secondary" id="restoreBtn" type="button">Restaurar copia</button>
       </div>
+      <button class="share" id="shareBtn" type="button">Compartir listado</button>
+      <div class="share-note">Crea un enlace con una copia del inventario actual para abrirlo e importarlo en otro dispositivo.</div>
       <input id="restoreInput" type="file" accept=".json,application/json" />
 
       <div id="storageStatus" class="status">Comprobando almacenamiento…</div>
@@ -403,6 +423,10 @@ function formatCOP(value) {
   }).format(value);
 }
 
+function formatKm(value) {
+  return `${new Intl.NumberFormat("es-CO").format(Number(value || 0))} km`;
+}
+
 function escapeHTML(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -447,6 +471,7 @@ async function renderVehicles() {
       <div class="vehicle-main">
         <div class="vehicle-brand">${escapeHTML(v.marca)}</div>
         <div class="vehicle-meta">${escapeHTML(v.color)} • ${escapeHTML(v.anio)}</div>
+        <div class="vehicle-meta">${formatKm(v.kilometraje)}</div>
         <div class="vehicle-price">${formatCOP(v.precio)}</div>
       </div>
       <div class="actions">
@@ -488,9 +513,11 @@ document.getElementById("vehicleForm").addEventListener("submit", async (event) 
   const color = document.getElementById("color").value.trim();
   const anioText = document.getElementById("anio").value.replace(/\D/g, "");
   const precioText = document.getElementById("precio").value.replace(/\D/g, "");
+  const kilometrajeText = document.getElementById("kilometraje").value.replace(/\D/g, "");
 
   const anio = Number(anioText);
   const precio = Number(precioText);
+  const kilometraje = Number(kilometrajeText);
   const currentYear = new Date().getFullYear();
 
   if (!marca || !color) {
@@ -505,6 +532,10 @@ document.getElementById("vehicleForm").addEventListener("submit", async (event) 
     alert("Ingresa un precio válido.");
     return;
   }
+  if (!Number.isFinite(kilometraje) || kilometraje < 0) {
+    alert("Ingresa un kilometraje válido.");
+    return;
+  }
 
   const vehicle = {
     id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
@@ -512,6 +543,7 @@ document.getElementById("vehicleForm").addEventListener("submit", async (event) 
     color,
     anio,
     precio,
+    kilometraje,
     vendido: false,
     fechaRegistro: new Date().toISOString()
   };
@@ -576,7 +608,8 @@ document.getElementById("restoreInput").addEventListener("change", async (event)
       typeof v.marca === "string" &&
       typeof v.color === "string" &&
       Number.isFinite(Number(v.anio)) &&
-      Number.isFinite(Number(v.precio))
+      Number.isFinite(Number(v.precio)) &&
+      (v.kilometraje === undefined || Number.isFinite(Number(v.kilometraje)))
     );
 
     if (!valid) throw new Error("Los registros no son válidos");
@@ -592,6 +625,7 @@ document.getElementById("restoreInput").addEventListener("change", async (event)
       color: String(v.color),
       anio: Number(v.anio),
       precio: Number(v.precio),
+      kilometraje: Number(v.kilometraje || 0),
       vendido: Boolean(v.vendido),
       fechaRegistro: v.fechaRegistro || new Date().toISOString()
     }));
@@ -606,6 +640,133 @@ document.getElementById("restoreInput").addEventListener("change", async (event)
     event.target.value = "";
   }
 });
+
+
+function bytesToBase64Url(bytes) {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 32768) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
+  }
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
+function base64UrlToBytes(value) {
+  let base64 = value.replaceAll("-", "+").replaceAll("_", "/");
+  while (base64.length % 4) base64 += "=";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function encodeShareData(data) {
+  return bytesToBase64Url(new TextEncoder().encode(JSON.stringify(data)));
+}
+
+function decodeShareData(value) {
+  return JSON.parse(new TextDecoder().decode(base64UrlToBytes(value)));
+}
+
+async function createShareLink() {
+  const vehicles = await getAllVehicles();
+
+  if (!vehicles.length) {
+    alert("No hay vehículos para compartir.");
+    return;
+  }
+
+  const payload = {
+    app: "Inventario de Vehículos",
+    version: 1,
+    sharedAt: new Date().toISOString(),
+    vehicles: vehicles.map(v => ({
+      id: String(v.id),
+      marca: String(v.marca),
+      color: String(v.color),
+      anio: Number(v.anio),
+      precio: Number(v.precio),
+      kilometraje: Number(v.kilometraje || 0),
+      vendido: Boolean(v.vendido),
+      fechaRegistro: v.fechaRegistro || new Date().toISOString()
+    }))
+  };
+
+  const cleanUrl = `${location.origin}${location.pathname}`;
+  const shareUrl = `${cleanUrl}#share=${encodeShareData(payload)}`;
+
+  if (shareUrl.length > 60000) {
+    alert("El inventario es demasiado grande para compartirlo mediante enlace. Usa Exportar copia.");
+    return;
+  }
+
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: "Inventario de Vehículos",
+        text: `Inventario: ${vehicles.length} vehículos`,
+        url: shareUrl
+      });
+    } else if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("Enlace copiado. Puedes enviarlo por WhatsApp, correo u otra aplicación.");
+    } else {
+      prompt("Copia este enlace y envíalo:", shareUrl);
+    }
+  } catch (error) {
+    if (error?.name !== "AbortError") {
+      prompt("Copia este enlace y envíalo:", shareUrl);
+    }
+  }
+}
+
+async function importSharedListIfPresent() {
+  const hash = location.hash || "";
+  if (!hash.startsWith("#share=")) return;
+
+  try {
+    const data = decodeShareData(hash.slice(7));
+    const vehicles = data?.vehicles;
+    if (!Array.isArray(vehicles) || !vehicles.length) throw new Error("Listado inválido");
+
+    const current = await getAllVehicles();
+    let message = `Este enlace contiene ${vehicles.length} vehículos.`;
+
+    if (current.length) {
+      message += `\n\nEste dispositivo ya tiene ${current.length} vehículos.`;
+      message += `\nAceptar reemplazará el inventario local por el listado compartido.`;
+    } else {
+      message += `\n\n¿Deseas guardar este listado en este dispositivo?`;
+    }
+
+    if (!confirm(message)) {
+      history.replaceState(null, "", location.pathname + location.search);
+      return;
+    }
+
+    const normalized = vehicles.map((v, index) => ({
+      id: String(v.id || `${Date.now()}-${index}-${Math.random()}`),
+      marca: String(v.marca || ""),
+      color: String(v.color || ""),
+      anio: Number(v.anio),
+      precio: Number(v.precio),
+      kilometraje: Number(v.kilometraje || 0),
+      vendido: Boolean(v.vendido),
+      fechaRegistro: v.fechaRegistro || new Date().toISOString()
+    }));
+
+    await replaceAllVehicles(normalized);
+    history.replaceState(null, "", location.pathname + location.search);
+    await renderVehicles();
+    alert("Listado importado correctamente en este dispositivo.");
+  } catch (error) {
+    console.error(error);
+    history.replaceState(null, "", location.pathname + location.search);
+    alert("No se pudo abrir el listado compartido.");
+  }
+}
+
+document.getElementById("shareBtn").addEventListener("click", createShareLink);
+
 
 async function checkPersistence() {
   const status = document.getElementById("storageStatus");
@@ -634,6 +795,7 @@ async function init() {
   try {
     await openDB();
     await renderVehicles();
+    await importSharedListIfPresent();
     await checkPersistence();
 
     if ("serviceWorker" in navigator) {

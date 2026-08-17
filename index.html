@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0A66C2" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Inventario Autos" />
+  <title>Inventario de Vehículos</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <style>
+    :root{
+      --bg:#f3f4f6;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#6b7280;
+      --border:#d1d5db;
+      --primary:#0a66c2;
+      --danger:#c62828;
+      --success:#137333;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+    .app{
+      width:min(720px,100%);
+      margin:0 auto;
+      padding:calc(18px + env(safe-area-inset-top)) 16px calc(26px + env(safe-area-inset-bottom));
+    }
+    .header{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      margin-bottom:18px;
+    }
+    .logo{
+      width:66px;
+      height:66px;
+      border-radius:14px;
+      object-fit:contain;
+      background:#fff;
+      border:1px solid var(--border);
+      padding:5px;
+    }
+    h1{font-size:24px;margin:0}
+    .subtitle{color:var(--muted);font-size:14px;margin-top:4px}
+    .card{
+      background:var(--card);
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      padding:16px;
+      margin-bottom:18px;
+      box-shadow:0 2px 8px rgba(0,0,0,.04);
+    }
+    .form-title,.list-title{
+      font-size:18px;
+      font-weight:700;
+      margin:0 0 14px;
+    }
+    .field{margin-bottom:13px}
+    label{
+      display:block;
+      font-size:14px;
+      font-weight:600;
+      margin-bottom:6px;
+    }
+    input, select{
+      width:100%;
+      min-height:46px;
+      border:1px solid var(--border);
+      border-radius:9px;
+      background:#fff;
+      padding:10px 12px;
+      font-size:16px;
+      color:var(--text);
+    }
+    input:focus,select:focus{
+      outline:2px solid rgba(10,102,194,.22);
+      border-color:var(--primary);
+    }
+    button{
+      border:0;
+      border-radius:9px;
+      min-height:44px;
+      font-size:15px;
+      font-weight:650;
+      cursor:pointer;
+    }
+    .primary{
+      width:100%;
+      background:var(--primary);
+      color:#fff;
+    }
+    .toolbar{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:9px;
+      margin-top:10px;
+    }
+    .secondary{
+      background:#e8eef7;
+      color:#174a7e;
+    }
+    .danger{
+      color:var(--danger);
+      background:#fff1f1;
+      padding:8px 10px;
+      min-height:auto;
+    }
+    .status{
+      margin-top:10px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.4;
+    }
+    .list-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:10px;
+    }
+    .count{font-size:13px;color:var(--muted)}
+    .filters{
+      display:flex;
+      gap:7px;
+      overflow:auto;
+      padding-bottom:4px;
+      margin-bottom:12px;
+    }
+    .filter{
+      background:#fff;
+      border:1px solid var(--border);
+      padding:7px 11px;
+      min-height:auto;
+      white-space:nowrap;
+      color:#374151;
+    }
+    .filter.active{
+      border-color:var(--primary);
+      color:var(--primary);
+      background:#eef6ff;
+    }
+    .vehicle{
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+      padding:14px;
+      margin-bottom:10px;
+      display:flex;
+      gap:14px;
+      align-items:flex-start;
+    }
+    .vehicle.sold{opacity:.63}
+    .vehicle-main{flex:1;min-width:0}
+    .vehicle-brand{
+      font-weight:750;
+      font-size:17px;
+      word-break:break-word;
+    }
+    .vehicle-meta{color:var(--muted);margin-top:4px}
+    .vehicle-price{font-weight:750;margin-top:6px}
+    .actions{
+      min-width:104px;
+      display:flex;
+      flex-direction:column;
+      gap:11px;
+      align-items:flex-start;
+    }
+    .sold-label{
+      display:flex;
+      align-items:center;
+      gap:7px;
+      font-size:14px;
+      user-select:none;
+    }
+    .sold-label input{
+      width:21px;
+      height:21px;
+      min-height:0;
+      margin:0;
+    }
+    .empty{
+      text-align:center;
+      padding:28px 8px;
+      color:var(--muted);
+    }
+    .backup-note{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:10px;
+    }
+    #restoreInput{display:none}
+    @media (max-width:420px){
+      .vehicle{flex-direction:column}
+      .actions{width:100%;flex-direction:row;justify-content:space-between;align-items:center}
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <img class="logo" src="./logo.png" alt="Logo" />
+      <div>
+        <h1>Inventario de Vehículos</h1>
+        <div class="subtitle">Registro local de carros para venta</div>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2 class="form-title">Agregar vehículo</h2>
+      <form id="vehicleForm">
+        <div class="field">
+          <label for="marca">Marca</label>
+          <input id="marca" name="marca" autocomplete="off" placeholder="Ej. Toyota" required />
+        </div>
+
+        <div class="field">
+          <label for="color">Color</label>
+          <input id="color" name="color" autocomplete="off" placeholder="Ej. Blanco" required />
+        </div>
+
+        <div class="field">
+          <label for="anio">Año</label>
+          <input id="anio" name="anio" inputmode="numeric" placeholder="Ej. 2022" required />
+        </div>
+
+        <div class="field">
+          <label for="precio">Precio</label>
+          <input id="precio" name="precio" inputmode="numeric" placeholder="Ej. 85000000" required />
+        </div>
+
+        <button class="primary" type="submit">Agregar vehículo</button>
+      </form>
+
+      <div class="toolbar">
+        <button class="secondary" id="backupBtn" type="button">Exportar copia</button>
+        <button class="secondary" id="restoreBtn" type="button">Restaurar copia</button>
+      </div>
+      <input id="restoreInput" type="file" accept=".json,application/json" />
+
+      <div id="storageStatus" class="status">Comprobando almacenamiento…</div>
+      <div class="backup-note">
+        Recomendación: guarda periódicamente la copia JSON en Archivos/iCloud Drive, Google Drive u otra ubicación segura.
+      </div>
+    </section>
+
+    <section>
+      <div class="list-head">
+        <h2 class="list-title" style="margin:0">Listado</h2>
+        <div id="count" class="count">0 vehículos</div>
+      </div>
+
+      <div class="filters">
+        <button class="filter active" data-filter="todos" type="button">Todos</button>
+        <button class="filter" data-filter="disponibles" type="button">Disponibles</button>
+        <button class="filter" data-filter="vendidos" type="button">Vendidos</button>
+      </div>
+
+      <div id="vehicleList"></div>
+    </section>
+  </main>
+
+<script>
+const DB_NAME = "InventarioVehiculosDB";
+const DB_VERSION = 1;
+const STORE_NAME = "vehiculos";
+let db;
+let currentFilter = "todos";
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (event) => {
+      const database = event.target.result;
+      if (!database.objectStoreNames.contains(STORE_NAME)) {
+        const store = database.createObjectStore(STORE_NAME, { keyPath: "id" });
+        store.createIndex("vendido", "vendido", { unique: false });
+        store.createIndex("fechaRegistro", "fechaRegistro", { unique: false });
+      }
+    };
+
+    request.onsuccess = () => {
+      db = request.result;
+      resolve(db);
+    };
+
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function transactionComplete(tx) {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("Transacción cancelada"));
+  });
+}
+
+async function addVehicle(vehicle) {
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  tx.objectStore(STORE_NAME).add(vehicle);
+  await transactionComplete(tx);
+}
+
+async function getAllVehicles() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const req = tx.objectStore(STORE_NAME).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function putVehicle(vehicle) {
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  tx.objectStore(STORE_NAME).put(vehicle);
+  await transactionComplete(tx);
+}
+
+async function removeVehicle(id) {
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  tx.objectStore(STORE_NAME).delete(id);
+  await transactionComplete(tx);
+}
+
+async function replaceAllVehicles(vehicles) {
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  const store = tx.objectStore(STORE_NAME);
+  store.clear();
+  for (const vehicle of vehicles) store.put(vehicle);
+  await transactionComplete(tx);
+}
+
+function formatCOP(value) {
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0
+  }).format(value);
+}
+
+function escapeHTML(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+async function renderVehicles() {
+  let vehicles = await getAllVehicles();
+
+  vehicles.sort((a, b) => {
+    if (a.vendido !== b.vendido) return a.vendido ? 1 : -1;
+    return new Date(b.fechaRegistro) - new Date(a.fechaRegistro);
+  });
+
+  document.getElementById("count").textContent =
+    `${vehicles.length} ${vehicles.length === 1 ? "vehículo" : "vehículos"}`;
+
+  if (currentFilter === "disponibles") vehicles = vehicles.filter(v => !v.vendido);
+  if (currentFilter === "vendidos") vehicles = vehicles.filter(v => v.vendido);
+
+  const list = document.getElementById("vehicleList");
+
+  if (!vehicles.length) {
+    list.innerHTML = `<div class="empty">No hay vehículos para mostrar.</div>`;
+    return;
+  }
+
+  list.innerHTML = vehicles.map(v => `
+    <article class="vehicle ${v.vendido ? "sold" : ""}">
+      <div class="vehicle-main">
+        <div class="vehicle-brand">${escapeHTML(v.marca)}</div>
+        <div class="vehicle-meta">${escapeHTML(v.color)} • ${escapeHTML(v.anio)}</div>
+        <div class="vehicle-price">${formatCOP(v.precio)}</div>
+      </div>
+      <div class="actions">
+        <label class="sold-label">
+          <input class="soldCheck" type="checkbox" data-id="${v.id}" ${v.vendido ? "checked" : ""} />
+          Vendido
+        </label>
+        <button class="danger deleteBtn" data-id="${v.id}" type="button">Eliminar</button>
+      </div>
+    </article>
+  `).join("");
+
+  document.querySelectorAll(".soldCheck").forEach(el => {
+    el.addEventListener("change", async (event) => {
+      const id = event.target.dataset.id;
+      const all = await getAllVehicles();
+      const vehicle = all.find(v => v.id === id);
+      if (!vehicle) return;
+      vehicle.vendido = event.target.checked;
+      await putVehicle(vehicle);
+      await renderVehicles();
+    });
+  });
+
+  document.querySelectorAll(".deleteBtn").forEach(el => {
+    el.addEventListener("click", async (event) => {
+      const id = event.target.dataset.id;
+      if (!confirm("¿Deseas eliminar este vehículo?")) return;
+      await removeVehicle(id);
+      await renderVehicles();
+    });
+  });
+}
+
+document.getElementById("vehicleForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const marca = document.getElementById("marca").value.trim();
+  const color = document.getElementById("color").value.trim();
+  const anioText = document.getElementById("anio").value.replace(/\D/g, "");
+  const precioText = document.getElementById("precio").value.replace(/\D/g, "");
+
+  const anio = Number(anioText);
+  const precio = Number(precioText);
+  const currentYear = new Date().getFullYear();
+
+  if (!marca || !color) {
+    alert("Completa Marca y Color.");
+    return;
+  }
+  if (!Number.isInteger(anio) || anio < 1900 || anio > currentYear + 1) {
+    alert("Ingresa un año válido.");
+    return;
+  }
+  if (!Number.isFinite(precio) || precio <= 0) {
+    alert("Ingresa un precio válido.");
+    return;
+  }
+
+  const vehicle = {
+    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+    marca,
+    color,
+    anio,
+    precio,
+    vendido: false,
+    fechaRegistro: new Date().toISOString()
+  };
+
+  try {
+    await addVehicle(vehicle);
+    event.target.reset();
+    await renderVehicles();
+  } catch (error) {
+    console.error(error);
+    alert("No fue posible guardar el vehículo.");
+  }
+});
+
+document.querySelectorAll(".filter").forEach(button => {
+  button.addEventListener("click", async () => {
+    document.querySelectorAll(".filter").forEach(b => b.classList.remove("active"));
+    button.classList.add("active");
+    currentFilter = button.dataset.filter;
+    await renderVehicles();
+  });
+});
+
+document.getElementById("backupBtn").addEventListener("click", async () => {
+  const vehicles = await getAllVehicles();
+  const backup = {
+    app: "Inventario de Vehículos",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    vehicles
+  };
+
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const date = new Date().toISOString().slice(0,10);
+  link.href = url;
+  link.download = `inventario-vehiculos-${date}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+document.getElementById("restoreBtn").addEventListener("click", () => {
+  document.getElementById("restoreInput").click();
+});
+
+document.getElementById("restoreInput").addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const vehicles = Array.isArray(data) ? data : data.vehicles;
+
+    if (!Array.isArray(vehicles)) throw new Error("Formato inválido");
+
+    const valid = vehicles.every(v =>
+      typeof v.id === "string" &&
+      typeof v.marca === "string" &&
+      typeof v.color === "string" &&
+      Number.isFinite(Number(v.anio)) &&
+      Number.isFinite(Number(v.precio))
+    );
+
+    if (!valid) throw new Error("Los registros no son válidos");
+
+    if (!confirm(`Se restaurarán ${vehicles.length} vehículos y se reemplazará el inventario actual. ¿Continuar?`)) {
+      event.target.value = "";
+      return;
+    }
+
+    const normalized = vehicles.map(v => ({
+      id: String(v.id),
+      marca: String(v.marca),
+      color: String(v.color),
+      anio: Number(v.anio),
+      precio: Number(v.precio),
+      vendido: Boolean(v.vendido),
+      fechaRegistro: v.fechaRegistro || new Date().toISOString()
+    }));
+
+    await replaceAllVehicles(normalized);
+    await renderVehicles();
+    alert("Copia restaurada correctamente.");
+  } catch (error) {
+    console.error(error);
+    alert("No se pudo restaurar la copia. Verifica que sea un archivo JSON generado por esta aplicación.");
+  } finally {
+    event.target.value = "";
+  }
+});
+
+async function checkPersistence() {
+  const status = document.getElementById("storageStatus");
+  try {
+    if (!navigator.storage) {
+      status.textContent = "Datos guardados localmente en este dispositivo. Haz copias de seguridad periódicas.";
+      return;
+    }
+
+    let persisted = false;
+    if (navigator.storage.persisted) persisted = await navigator.storage.persisted();
+
+    if (!persisted && navigator.storage.persist) {
+      persisted = await navigator.storage.persist();
+    }
+
+    status.textContent = persisted
+      ? "Almacenamiento persistente activo en este dispositivo."
+      : "Almacenamiento local activo. El sistema no garantiza permanencia absoluta: usa Exportar copia periódicamente.";
+  } catch {
+    status.textContent = "Almacenamiento local activo. Usa Exportar copia periódicamente.";
+  }
+}
+
+async function init() {
+  try {
+    await openDB();
+    await renderVehicles();
+    await checkPersistence();
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js").catch(console.error);
+    }
+  } catch (error) {
+    console.error(error);
+    alert("No fue posible iniciar la base de datos local.");
+  }
+}
+
+init();
+</script>
+</body>
+</html>
